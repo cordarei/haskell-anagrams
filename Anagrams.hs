@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Anagrams(anagrams, readDict) where
+module Anagrams(anagrams, readDict, readDict') where
+
+import Prelude hiding (Word)
 
 import           Control.Applicative ((<$>))
 import           Data.Char           (isAlpha)
@@ -27,8 +29,11 @@ type SearchState = (Anagram, Letters, Dictionary)
 -- high memory usage.
 anagrams :: Dictionary -> Text -> [Text]
 anagrams dict source =
-  map extractAnagram $ catMaybes $ breadthFirstNodes $ search dict source
-  where breadthFirstNodes = concat . Tr.levels
+  map extractAnagram $ catMaybes $ depthFirstNodes $ search dict source
+  where
+    breadthFirstNodes = concat . Tr.levels
+    depthFirstNodes :: Tree (Maybe Anagram) -> [Maybe Anagram]
+    depthFirstNodes = foldr (:) []
 
 search :: Dictionary -> Text -> Tree (Maybe Anagram)
 search dict source = Tr.unfoldTree expand initialState
@@ -57,8 +62,12 @@ wordLetters = MS.fromList . filter isAlpha . T.unpack . T.toLower
 
 
 readDict :: IO Dictionary
-readDict = (S.filter goodWord . S.fromList . T.lines) <$> TIO.readFile "/usr/share/dict/words"
-  where goodWord "A" = True
+readDict = readDict' "/usr/share/dict/words"
+
+readDict' :: FilePath -> IO Dictionary
+readDict' path = (S.filter goodWord . S.fromList . map T.toLower . T.lines) <$> TIO.readFile path
+  where goodWord "a" = True
         goodWord "I" = True
         goodWord "O" = True
         goodWord w   = T.length w > 1
+
